@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    --primary: 220 60% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 96%;
+    --secondary-foreground: 240 10% 15%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 220 20% 96%;
+    --accent-foreground: 240 10% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 220 60% 50%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 8%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 220 60% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 16%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 5% 16%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5% 16%;
+    --input: 240 5% 16%;
+    --ring: 220 60% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+body {
+  font-family: var(--font-noto-sans-thai), var(--font-inter), sans-serif;
+}
+
+/* เพิ่ม custom styles สำหรับ UI มินิมอล */
+@layer components {
+  .minimal-card {
+    @apply bg-card border-none shadow-sm hover:shadow-md transition-shadow duration-300 rounded-lg overflow-hidden;
+  }
+
+  .minimal-button {
+    @apply rounded-md transition-all duration-300;
+  }
+
+  .minimal-input {
+    @apply bg-background border-input rounded-md;
+  }
+
+  .minimal-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* ปรับแต่งสีในโหมดมืด */
+.dark .bg-white {
+  @apply bg-gray-800;
+}
+
+.dark .text-primary {
+  @apply text-blue-300;
+}
+
+.dark .bg-primary\/10 {
+  @apply bg-blue-900/30;
+}
+
+.dark .bg-secondary {
+  @apply bg-gray-900;
+}
+
+.dark .border-primary {
+  @apply border-blue-400;
+}
+
+.dark .hover\:bg-primary:hover {
+  @apply hover:bg-blue-600;
+}
+
+.dark .text-muted-foreground {
+  @apply text-gray-400;
+}
+
+/* ปรับแต่งสีสำหรับส่วนสถานที่ท่องเที่ยวยอดนิยมในโหมดมืด */
+.dark .featured-places-section h2,
+.dark .featured-places-section h3 {
+  @apply text-gray-100;
+}
+
+.dark .featured-places-section p {
+  @apply text-gray-300;
+}
