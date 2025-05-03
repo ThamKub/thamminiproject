@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { addComment, isUUID } from "@/lib/db"
 
+// แก้ไขฟังก์ชัน POST เพื่อให้จัดการกับความคิดเห็นได้ดีขึ้น
+
 export async function POST(request) {
   try {
     const body = await request.json()
@@ -10,11 +12,19 @@ export async function POST(request) {
       return NextResponse.json({ error: "กรุณาระบุข้อมูลให้ครบถ้วน" }, { status: 400 })
     }
 
-    // เพิ่มความคิดเห็นโดยใช้ฟังก์ชัน addComment
-    const commentData = {
+    // สร้างข้อมูลความคิดเห็นใหม่
+    const commentId = `comment-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+    const newComment = {
+      id: commentId,
       text,
       photo_id: photoId,
       user_id: userId,
+      created_at: new Date().toISOString(),
+      user: {
+        id: userId,
+        name: "ผู้ใช้งาน",
+        avatar_url: `/placeholder.svg?height=40&width=40`,
+      },
     }
 
     // ตรวจสอบว่า ID เป็น UUID หรือไม่
@@ -24,86 +34,29 @@ export async function POST(request) {
     // ถ้า ID ไม่ใช่ UUID ให้ใช้วิธีการจำลองการเพิ่มความคิดเห็น
     if (!isValidPhotoId || !isValidUserId) {
       console.log("Using mock comment due to non-UUID IDs:", { photoId, userId })
-
-      // สร้างข้อมูลความคิดเห็นใหม่
-      const newComment = {
-        id: `comment-${Date.now()}`,
-        text,
-        photo_id: photoId,
-        user_id: userId,
-        created_at: new Date().toISOString(),
-        user: {
-          id: userId,
-          name: "ผู้ใช้งาน",
-          avatar_url: `/placeholder.svg?height=40&width=40`,
-        },
-      }
-
-      // เพิ่มความคิดเห็นลงใน localStorage
-      try {
-        const photosData = localStorage.getItem("photos")
-        if (photosData) {
-          const photos = JSON.parse(photosData)
-          const photoIndex = photos.findIndex((p) => p.id === photoId)
-
-          if (photoIndex !== -1) {
-            if (!photos[photoIndex].comments) {
-              photos[photoIndex].comments = []
-            }
-
-            photos[photoIndex].comments.unshift(newComment)
-            localStorage.setItem("photos", JSON.stringify(photos))
-          }
-        }
-      } catch (localStorageError) {
-        console.error("Error updating localStorage:", localStorageError)
-        // ถึงแม้จะมีข้อผิดพลาดกับ localStorage ก็ยังส่งคืนความคิดเห็นใหม่
-      }
-
       return NextResponse.json(newComment, { status: 201 })
     }
 
     // ถ้า ID เป็น UUID ให้ใช้ addComment จาก lib/db
     try {
-      const newComment = await addComment(commentData)
-
-      if (!newComment) {
-        // ถ้าไม่สามารถเพิ่มความคิดเห็นได้ ให้ใช้วิธีการจำลองแทน
-        const mockComment = {
-          id: `comment-${Date.now()}`,
-          text,
-          photo_id: photoId,
-          user_id: userId,
-          created_at: new Date().toISOString(),
-          user: {
-            id: userId,
-            name: "ผู้ใช้งาน",
-            avatar_url: `/placeholder.svg?height=40&width=40`,
-          },
-        }
-
-        return NextResponse.json(mockComment, { status: 201 })
-      }
-
-      return NextResponse.json(newComment, { status: 201 })
-    } catch (dbError) {
-      console.error("Database error:", dbError)
-
-      // ถ้าเกิดข้อผิดพลาดกับฐานข้อมูล ให้ใช้วิธีการจำลองแทน
-      const fallbackComment = {
-        id: `comment-${Date.now()}`,
+      const commentData = {
         text,
         photo_id: photoId,
         user_id: userId,
-        created_at: new Date().toISOString(),
-        user: {
-          id: userId,
-          name: "ผู้ใช้งาน",
-          avatar_url: `/placeholder.svg?height=40&width=40`,
-        },
       }
 
-      return NextResponse.json(fallbackComment, { status: 201 })
+      const dbComment = await addComment(commentData)
+
+      if (!dbComment) {
+        // ถ้าไม่สามารถเพิ่มความคิดเห็นได้ ให้ใช้วิธีการจำลองแทน
+        return NextResponse.json(newComment, { status: 201 })
+      }
+
+      return NextResponse.json(dbComment, { status: 201 })
+    } catch (dbError) {
+      console.error("Database error:", dbError)
+      // ถ้าเกิดข้อผิดพลาดกับฐานข้อมูล ให้ใช้วิธีการจำลองแทน
+      return NextResponse.json(newComment, { status: 201 })
     }
   } catch (error) {
     console.error("Error adding comment:", error)

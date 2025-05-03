@@ -47,6 +47,26 @@ export default function Home() {
       setTimeout(() => {
         setRefreshKey((prev) => prev + 1)
       }, 1000)
+
+      // เพิ่มการรีเฟรชอีกครั้งหลังจาก 3 วินาที เพื่อให้แน่ใจว่าข้อมูลถูกโหลดเรียบร้อยแล้ว
+      setTimeout(() => {
+        setRefreshKey((prev) => prev + 1)
+      }, 3000)
+    }
+  }, [])
+
+  // เพิ่ม useEffect เพื่อตรวจสอบการกลับมาที่หน้านี้
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setRefreshKey((prev) => prev + 1)
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
   }, [])
 

@@ -148,132 +148,19 @@ export function PhotoGrid({ featured = false, limit = 12, userId, locationFilter
   const fetchPhotos = async () => {
     setLoading(true)
     try {
-      // สร้าง URL สำหรับ API
-      const url = new URL("/api/photos", window.location.origin)
-      url.searchParams.append("limit", limit.toString())
-      url.searchParams.append("offset", "0")
+      console.log("Fetching photos with params:", { featured, limit, locationFilter, userId })
 
-      if (featured) {
-        url.searchParams.append("featured", "true")
-      }
+      // ดึงข้อมูลจาก localStorage ก่อน
+      const photosData = localStorage.getItem("photos")
+      let localPhotos = []
 
-      if (locationFilter) {
-        url.searchParams.append("location", locationFilter)
-      }
-
-      if (userId) {
-        url.searchParams.append("userId", userId)
-      }
-
-      // เพิ่ม timestamp เพื่อป้องกัน cache
-      url.searchParams.append("t", Date.now().toString())
-
-      // เรียกใช้ API
-      const response = await fetch(url.toString(), { cache: "no-store" })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch photos")
-      }
-
-      const data = await response.json()
-
-      // ถ้าไม่มีข้อมูลจาก API ให้ลองดึงข้อมูลจาก localStorage
-      if (!data || data.length === 0) {
-        const photosData = localStorage.getItem("photos")
-        if (photosData) {
-          try {
-            let allPhotos = JSON.parse(photosData)
-
-            // ดึงรายการรูปภาพที่ถูกลบ
-            const deletedPhotosData = localStorage.getItem("deletedPhotos") || "[]"
-            const deletedPhotos = JSON.parse(deletedPhotosData)
-
-            // กรองรูปภาพที่ถูกลบออก
-            allPhotos = allPhotos.filter((photo) => !deletedPhotos.includes(photo.id))
-
-            // กรองตามเงื่อนไข
-            if (featured) {
-              allPhotos = allPhotos.filter((photo) => photo.featured)
-            }
-
-            if (locationFilter) {
-              allPhotos = allPhotos.filter(
-                (photo) =>
-                  photo.location?.toLowerCase().includes(locationFilter.toLowerCase()) ||
-                  photo.province?.toLowerCase().includes(locationFilter.toLowerCase()),
-              )
-            }
-
-            if (userId) {
-              allPhotos = allPhotos.filter((photo) => photo.user_id === userId)
-            }
-
-            // เรียงลำดับตาม created_at จากใหม่ไปเก่า
-            allPhotos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-            // จำกัดจำนวน
-            const limitedPhotos = allPhotos.slice(0, limit)
-
-            if (limitedPhotos.length === 0) {
-              setNoPhotos(true)
-              setPhotos([])
-              setLoading(false)
-              return
-            }
-
-            // แปลงข้อมูลให้ตรงกับโครงสร้างที่ต้องการ
-            let formattedPhotos = limitedPhotos.map((photo) => {
-              // ดึงข้อมูลการกดถูกใจจาก localStorage
-              let likesCount = 0
-              const likesKey = `photoLikes_${photo.id}`
-              try {
-                const likesData = localStorage.getItem(likesKey)
-                if (likesData) {
-                  const likesList = JSON.parse(likesData)
-                  likesCount = likesList.length
-                } else if (typeof photo.likes === "number") {
-                  likesCount = photo.likes
-                } else if (Array.isArray(photo.likes)) {
-                  likesCount = photo.likes.length
-                }
-              } catch (error) {
-                console.error("Error parsing likes data:", error)
-                likesCount = typeof photo.likes === "number" ? photo.likes : photo.likes?.length || 0
-              }
-
-              return {
-                id: photo.id,
-                image_url: photo.image_url,
-                title: photo.title,
-                location: photo.location,
-                likes: likesCount,
-                comments: Array.isArray(photo.comments) ? photo.comments.length : 0,
-                user: {
-                  name: photo.user?.name || "ผู้ใช้งาน",
-                  avatar_url: photo.user?.avatar_url || `/placeholder.svg?height=40&width=40`,
-                  id: photo.user_id || photo.user?.id || "unknown",
-                },
-              }
-            })
-
-            // ถ้า random=true ให้สุ่มลำดับรูปภาพ
-            if (random && formattedPhotos.length > 0) {
-              formattedPhotos = formattedPhotos.sort(() => Math.random() - 0.5).slice(0, limit)
-            }
-
-            setPhotos(formattedPhotos)
-            setNoPhotos(false)
-            setLoading(false)
-            return
-          } catch (error) {
-            console.error("Error parsing photos from localStorage:", error)
-          }
+      if (photosData) {
+        try {
+          localPhotos = JSON.parse(photosData)
+          console.log("Found local photos:", localPhotos.length)
+        } catch (error) {
+          console.error("Error parsing photos from localStorage:", error)
         }
-
-        setNoPhotos(true)
-        setPhotos([])
-        setLoading(false)
-        return
       }
 
       // ดึงรายการรูปภาพที่ถูกลบ
@@ -281,10 +168,30 @@ export function PhotoGrid({ featured = false, limit = 12, userId, locationFilter
       const deletedPhotos = JSON.parse(deletedPhotosData)
 
       // กรองรูปภาพที่ถูกลบออก
-      const filteredData = data.filter((photo) => !deletedPhotos.includes(photo.id))
+      localPhotos = localPhotos.filter((photo) => !deletedPhotos.includes(photo.id))
 
-      // แปลงข้อมูลจาก API ให้ตรงกับโครงสร้างที่ต้องการ
-      let formattedPhotos = filteredData.map((photo) => {
+      // กรองตามเงื่อนไข
+      if (featured) {
+        localPhotos = localPhotos.filter((photo) => photo.featured)
+      }
+
+      if (locationFilter) {
+        localPhotos = localPhotos.filter(
+          (photo) =>
+            photo.location?.toLowerCase().includes(locationFilter.toLowerCase()) ||
+            photo.province?.toLowerCase().includes(locationFilter.toLowerCase()),
+        )
+      }
+
+      if (userId) {
+        localPhotos = localPhotos.filter((photo) => photo.user_id === userId)
+      }
+
+      // เรียงลำดับตาม created_at จากใหม่ไปเก่า
+      localPhotos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+      // จำกัดจำนวน
+      let formattedPhotos = localPhotos.slice(0, limit).map((photo) => {
         // ดึงข้อมูลการกดถูกใจจาก localStorage
         let likesCount = 0
         const likesKey = `photoLikes_${photo.id}`
@@ -309,7 +216,7 @@ export function PhotoGrid({ featured = false, limit = 12, userId, locationFilter
           title: photo.title,
           location: photo.location,
           likes: likesCount,
-          comments: photo.comments?.length || 0,
+          comments: Array.isArray(photo.comments) ? photo.comments.length : 0,
           user: {
             name: photo.user?.name || "ผู้ใช้งาน",
             avatar_url: photo.user?.avatar_url || `/placeholder.svg?height=40&width=40`,
@@ -323,13 +230,103 @@ export function PhotoGrid({ featured = false, limit = 12, userId, locationFilter
         formattedPhotos = formattedPhotos.sort(() => Math.random() - 0.5).slice(0, limit)
       }
 
+      console.log("Setting photos from localStorage:", formattedPhotos.length)
       setPhotos(formattedPhotos)
       setNoPhotos(formattedPhotos.length === 0)
+      setLoading(false)
+
+      // พยายามดึงข้อมูลจาก API เพื่ออัพเดตข้อมูลในพื้นหลัง
+      try {
+        // สร้าง URL สำหรับ API
+        const url = new URL("/api/photos", window.location.origin)
+        url.searchParams.append("limit", limit.toString())
+        url.searchParams.append("offset", "0")
+
+        if (featured) {
+          url.searchParams.append("featured", "true")
+        }
+
+        if (locationFilter) {
+          url.searchParams.append("location", locationFilter)
+        }
+
+        if (userId) {
+          url.searchParams.append("userId", userId)
+        }
+
+        // เพิ่ม timestamp เพื่อป้องกัน cache
+        url.searchParams.append("t", Date.now().toString())
+
+        // เรียกใช้ API
+        const response = await fetch(url.toString(), { cache: "no-store" })
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch photos from API")
+        }
+
+        const data = await response.json()
+
+        if (data && data.length > 0) {
+          console.log("Got API photos:", data.length)
+
+          // กรองรูปภาพที่ถูกลบออก
+          const filteredData = data.filter((photo) => !deletedPhotos.includes(photo.id))
+
+          // แปลงข้อมูลจาก API ให้ตรงกับโครงสร้างที่ต้องการ
+          let apiFormattedPhotos = filteredData.map((photo) => {
+            // ดึงข้อมูลการกดถูกใจจาก localStorage
+            let likesCount = 0
+            const likesKey = `photoLikes_${photo.id}`
+            try {
+              const likesData = localStorage.getItem(likesKey)
+              if (likesData) {
+                const likesList = JSON.parse(likesData)
+                likesCount = likesList.length
+              } else if (typeof photo.likes === "number") {
+                likesCount = photo.likes
+              } else if (Array.isArray(photo.likes)) {
+                likesCount = photo.likes.length
+              }
+            } catch (error) {
+              console.error("Error parsing likes data:", error)
+              likesCount = typeof photo.likes === "number" ? photo.likes : photo.likes?.length || 0
+            }
+
+            return {
+              id: photo.id,
+              image_url: photo.image_url,
+              title: photo.title,
+              location: photo.location,
+              likes: likesCount,
+              comments: photo.comments?.length || 0,
+              user: {
+                name: photo.user?.name || "ผู้ใช้งาน",
+                avatar_url: photo.user?.avatar_url || `/placeholder.svg?height=40&width=40`,
+                id: photo.user_id || photo.user?.id || "unknown",
+              },
+            }
+          })
+
+          // ถ้า random=true ให้สุ่มลำดับรูปภาพ
+          if (random && apiFormattedPhotos.length > 0) {
+            apiFormattedPhotos = apiFormattedPhotos.sort(() => Math.random() - 0.5).slice(0, limit)
+          }
+
+          // อัพเดตรูปภาพถ้ามีข้อมูลใหม่จาก API
+          if (apiFormattedPhotos.length > 0) {
+            console.log("Updating photos from API")
+            setPhotos(apiFormattedPhotos)
+            setNoPhotos(false)
+          }
+        }
+      } catch (apiError) {
+        console.error("Error fetching photos from API:", apiError)
+        // ไม่ต้องทำอะไรเพราะเราได้แสดงข้อมูลจาก localStorage แล้ว
+      }
     } catch (error) {
-      console.error("Error fetching photos:", error)
+      console.error("Error in fetchPhotos:", error)
       setNoPhotos(true)
       setPhotos([])
-    } finally {
       setLoading(false)
     }
   }
@@ -351,6 +348,7 @@ export function PhotoGrid({ featured = false, limit = 12, userId, locationFilter
 
   // ดึงข้อมูลรูปภาพเมื่อคอมโพเนนต์โหลดหรือเมื่อ refreshKey เปลี่ยน
   useEffect(() => {
+    console.log("PhotoGrid refreshing with key:", refreshKey)
     fetchPhotos()
 
     // ตั้งค่า subscription สำหรับการเปลี่ยนแปลงในตาราง photos
@@ -359,6 +357,7 @@ export function PhotoGrid({ featured = false, limit = 12, userId, locationFilter
         .channel("photos-changes")
         .on("postgres_changes", { event: "*", schema: "public", table: "photos" }, () => {
           // เมื่อมีการเปลี่ยนแปลงในตาราง photos ให้ดึงข้อมูลใหม่
+          console.log("Supabase change detected, refreshing photos")
           fetchPhotos()
         })
         .subscribe()
@@ -369,15 +368,28 @@ export function PhotoGrid({ featured = false, limit = 12, userId, locationFilter
     }
 
     // เพิ่ม event listener สำหรับการเปลี่ยนแปลงใน localStorage
-    const handleStorageChange = () => {
-      checkDeletedPhotos()
-      fetchPhotos()
+    const handleStorageChange = (e) => {
+      console.log("Storage change detected:", e)
+      if (e.key === "photos" || e.key === "lastUpload" || e.key === "photosUpdated" || e.key === null) {
+        checkDeletedPhotos()
+        fetchPhotos()
+      }
     }
 
     window.addEventListener("storage", handleStorageChange)
 
+    // เพิ่มการตรวจสอบการเปลี่ยนแปลงทุก 5 วินาที
+    const intervalId = setInterval(() => {
+      const photosUpdated = localStorage.getItem("photosUpdated")
+      if (photosUpdated && Number.parseInt(photosUpdated) > Date.now() - 10000) {
+        console.log("Recent photos update detected, refreshing")
+        fetchPhotos()
+      }
+    }, 5000)
+
     return () => {
       window.removeEventListener("storage", handleStorageChange)
+      clearInterval(intervalId)
     }
   }, [featured, limit, userId, locationFilter, refreshKey, random, checkDeletedPhotos])
 

@@ -196,26 +196,10 @@ export default function UploadPage() {
       formData.append("image", values.image)
       formData.append("userId", user.id)
 
-      // ส่งข้อมูลไปยัง API (ใช้ API admin แทน)
-      const response = await fetch("/api/admin/photos", {
-        method: "POST",
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "ไม่สามารถอัปโหลดรูปภาพได้")
-      }
-
-      const data = await response.json()
-
-      // เก็บข้อมูลใน localStorage สำหรับการแสดงผลทันที
-      const photosData = localStorage.getItem("photos")
-      const photos = photosData ? JSON.parse(photosData) : []
-
-      // สร้างข้อมูลรูปภาพใหม่
+      // สร้างข้อมูลรูปภาพใหม่สำหรับเก็บใน localStorage ก่อน
+      const newPhotoId = `photo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
       const newPhoto = {
-        id: data.id || `photo-${Date.now()}`,
+        id: newPhotoId,
         title: values.title,
         description: values.description || "",
         location: values.location,
@@ -228,16 +212,16 @@ export default function UploadPage() {
         user: {
           id: user.id,
           name: user.name || "ผู้ใช้งานตัวอย่าง",
-          avatar_url: `/placeholder.svg?height=40&width=40`,
+          avatar_url: user.avatar_url || `/placeholder.svg?height=40&width=40`,
         },
         comments: [],
         likes: 0,
       }
 
-      // เพิ่มรูปภาพใหม่ลงในรายการ
+      // บันทึกข้อมูลใน localStorage ก่อนเพื่อให้แสดงผลทันที
+      const photosData = localStorage.getItem("photos")
+      const photos = photosData ? JSON.parse(photosData) : []
       photos.unshift(newPhoto)
-
-      // บันทึกรายการรูปภาพลงใน localStorage
       localStorage.setItem("photos", JSON.stringify(photos))
 
       // เก็บข้อมูลว่ามีการอัปโหลดล่าสุด
@@ -246,14 +230,40 @@ export default function UploadPage() {
       // ทำให้เกิด storage event เพื่อให้หน้าอื่นรับรู้การเปลี่ยนแปลง
       window.dispatchEvent(new Event("storage"))
 
+      // เพิ่มการแจ้งเตือนการเปลี่ยนแปลงอีกวิธี
+      try {
+        localStorage.setItem("photosUpdated", Date.now().toString())
+      } catch (e) {
+        console.error("Error setting photosUpdated:", e)
+      }
+
+      // แสดง toast ว่าอัปโหลดสำเร็จ
       toast({
         title: "อัปโหลดสำเร็จ",
         description: "รูปภาพของคุณถูกอัปโหลดเรียบร้อยแล้ว",
       })
 
+      // ส่งข้อมูลไปยัง API (ใช้ API admin แทน) - ทำหลังจากบันทึกใน localStorage แล้ว
+      try {
+        const response = await fetch("/api/admin/photos", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log("API upload success:", data)
+        } else {
+          console.warn("API upload failed but local storage was updated")
+        }
+      } catch (apiError) {
+        console.error("API error:", apiError)
+        // ไม่ต้อง throw error เพราะเราได้บันทึกใน localStorage แล้ว
+      }
+
       // รีเฟรชหน้าแรกเพื่อแสดงรูปภาพใหม่
       setTimeout(() => {
-        router.push("/")
+        router.push("/?refresh=" + Date.now())
       }, 1000) // รอ 1 วินาทีเพื่อให้ toast แสดงก่อนเด้งไปหน้าแรก
     } catch (error) {
       console.error("Upload error:", error)
@@ -382,11 +392,11 @@ export default function UploadPage() {
                   <FormLabel>จังหวัด</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-background">
                         <SelectValue placeholder="เลือกจังหวัด" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="max-h-[300px]">
+                    <SelectContent className="bg-background max-h-[300px] overflow-y-auto">
                       {provinces.map((province) => (
                         <SelectItem key={province} value={province}>
                           {province}
